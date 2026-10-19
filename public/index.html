@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0 30px 0 30px;
+            height: 100vh;
+        }
+
+        #chat-form {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+        }
+
+        #messages {
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 50px;
+        }
+
+        .me {
+            align-self: flex-end;
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="messages"></div>
+    <form id="chat-form">
+        <input type="text" id="msg-input" placeholder="Écrit ton message ici..." autocomplete="off" required>
+        <button type="submit">Envoyer</button>
+    </form>
+
+    <script>
+        // Gère automatiquement ws:// en local et wss:// en production
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}`);
+        const messagesDiv = document.getElementById('messages');
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('msg-input');
+
+        // Réception des messages
+        ws.onmessage = async (event) => {
+            const text = event.data instanceof Blob ? await event.data.text() : event.data;
+            addMessage(text, false);
+        };
+
+        // Envoi des messages
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (text) {
+                ws.send(text);
+                addMessage(text, true);
+                input.value = '';
+            }
+        });
+
+        // Affichage dans le DOM avec protection XSS
+        function addMessage(text, isMe) {
+            const div = document.createElement('div');
+            div.className = isMe ? 'msg me' : 'msg';
+            div.textContent = text;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>

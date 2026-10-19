@@ -1,0 +1,6 @@
+services:
+  mini-chat:
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: node --watch server.js

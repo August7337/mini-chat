@@ -1,0 +1,8 @@
+services:
+  mini-chat:
+    build: .
+    container_name: mini-chat
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    command: node server.js
