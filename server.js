@@ -7,7 +7,7 @@ const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, maxPayload: 1024 * 10 });
 
 wss.on('connection', (ws) => {
     ws.isAlive = true;
@@ -15,6 +15,11 @@ wss.on('connection', (ws) => {
 
     ws.on('message', (message) => {
         const text = message.toString();
+
+        if (text.length > 2000) {
+            return; 
+        }
+
         wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(text);
