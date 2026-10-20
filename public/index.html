@@ -28,12 +28,17 @@
             align-self: flex-end;
             text-align: right;
         }
+
+        .username {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
 <body>
     <div id="messages"></div>
     <form id="chat-form">
+        <input type="text" id="un-input" placeholder="Username" autocomplete="off" maxlength="50">
         <input type="text" id="msg-input" placeholder="Écrit ton message ici..." autocomplete="off" maxlength="2000" required>
         <button type="submit">Envoyer</button>
     </form>
@@ -44,30 +49,47 @@
         const ws = new WebSocket(`${protocol}//${window.location.host}`);
         const messagesDiv = document.getElementById('messages');
         const form = document.getElementById('chat-form');
-        const input = document.getElementById('msg-input');
+        const msgInput = document.getElementById('msg-input');
+        const unInput = document.getElementById('un-input');
 
         // Réception des messages
         ws.onmessage = async (event) => {
-            const text = event.data instanceof Blob ? await event.data.text() : event.data;
-            addMessage(text, false);
-        };
+        const rawData = event.data instanceof Blob ? await event.data.text() : event.data;
+        try {
+            const msg = JSON.parse(rawData);
+            addMessage(msg.username || 'Anonyme', msg.text, false);
+        } catch (e) {
+            console.error("Erreur : le message reçu n'est pas un JSON valide", e);
+        }
+};
 
         // Envoi des messages
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const text = input.value.trim();
+            const text = msgInput.value.trim();
+            const username = unInput.value.trim() || 'Anonyme';
+
             if (text) {
-                ws.send(text);
-                addMessage(text, true);
-                input.value = '';
+                const messageData = { username: username, text: text };
+                ws.send(JSON.stringify(messageData));
+
+                addMessage(username, text, true);
+                msgInput.value = '';
             }
         });
 
         // Affichage dans le DOM avec protection XSS
-        function addMessage(text, isMe) {
+        function addMessage(username, text, isMe) {
             const div = document.createElement('div');
             div.className = isMe ? 'msg me' : 'msg';
-            div.textContent = text;
+
+            const userSpan = document.createElement('span');
+            userSpan.className = 'username';
+            userSpan.textContent = username;
+
+            div.appendChild(userSpan);
+            div.append(': ' + text);
+
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }

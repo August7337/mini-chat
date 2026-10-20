@@ -9,20 +9,43 @@ app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, maxPayload: 1024 * 10 });
 
+const messageTimestamps = new WeakMap();
+
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
+    messageTimestamps.set(ws, 0);
 
-    ws.on('message', (message) => {
-        const text = message.toString();
-
-        if (text.length > 2000) {
-            return; 
+    ws.on('message', (rawData) => {
+        const now = Date.now();
+        const lastMsgTime = messageTimestamps.get(ws) || 0;
+        if (now - lastMsgTime < 500) {
+            return;
         }
+        messageTimestamps.set(ws, now);
+
+        let parsed;
+        try {
+            parsed = JSON.parse(rawData.toString());
+        } catch (err) {
+            return;
+        }
+
+        const username = typeof parsed.username === 'string' ? parsed.username.trim() : 'Anonyme';
+        const text = typeof parsed.text === 'string' ? parsed.text.trim() : '';
+
+        if (!text || text.length > 2000 || username.length > 50) {
+            return;
+        }
+
+        const broadcastPayload = JSON.stringify({
+            username: username || 'Anonyme',
+            text: text
+        });
 
         wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(text);
+                client.send(broadcastPayload);
             }
         });
     });
