@@ -52,6 +52,13 @@
         const msgInput = document.getElementById('msg-input');
         const unInput = document.getElementById('un-input');
 
+        try {                                                                                                                                                         
+            unInput.value = localStorage.getItem("username") || "";                                                                                                   
+        } catch (e) {                                                                                                                                                 
+            console.warn("Stockage local inaccessible :", e);                                                                                                         
+        } 
+
+
         // Réception des messages
         ws.onmessage = async (event) => {
         const rawData = event.data instanceof Blob ? await event.data.text() : event.data;
@@ -77,6 +84,12 @@
                 msgInput.value = '';
             }
         });
+
+        unInput.addEventListener('change', (e) => {
+            try {                                                                                                                                                     
+                localStorage.setItem("username", unInput.value.trim());                                                                                               
+            } catch (e) {} 
+        })
 
         // Affichage dans le DOM avec protection XSS
         function addMessage(username, text, isMe) {
