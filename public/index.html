@@ -65,6 +65,12 @@
                 const rawData = event.data instanceof Blob ? await event.data.text() : event.data;
                 try {
                     const msg = JSON.parse(rawData);
+                    if (msg.type === 'history') {
+                        messagesDiv.innerHTML = '';
+                        const myName = unInput.value.trim();
+                        msg.messages.forEach((m) => addMessage(m.username, m.text, Boolean(myName && m.username === myName)));
+                        return;
+                    }
                     addMessage(msg.username || 'Anonyme', msg.text, false);
                 } catch (e) {
                     console.error("Erreur : le message reçu n'est pas un JSON valide", e);

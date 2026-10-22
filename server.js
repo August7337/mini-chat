@@ -10,11 +10,14 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, maxPayload: 1024 * 10 });
 
 const messageTimestamps = new WeakMap();
+const history = [];
 
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
     messageTimestamps.set(ws, 0);
+
+    ws.send(JSON.stringify({ type: 'history', messages: history }));
 
     ws.on('message', (rawData) => {
         const now = Date.now();
@@ -38,10 +41,14 @@ wss.on('connection', (ws) => {
             return;
         }
 
-        const broadcastPayload = JSON.stringify({
+        const msg = {
             username: username || 'Anonyme',
             text: text
-        });
+        };
+        history.push(msg);
+        if (history.length > 50) history.shift();
+
+        const broadcastPayload = JSON.stringify(msg);
 
         wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
