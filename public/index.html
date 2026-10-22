@@ -39,8 +39,9 @@
     <div id="messages"></div>
     <form id="chat-form">
         <input type="text" id="un-input" placeholder="Username" autocomplete="off" maxlength="50">
-        <input type="text" id="msg-input" placeholder="Écrit ton message ici..." autocomplete="off" maxlength="2000" required>
-        <button type="submit">Envoyer</button>
+        <input type="text" id="msg-input" placeholder="Écrit ton message ici..." autocomplete="off" maxlength="2000">
+        <input type="file" id="file-input">
+        <button type="submit" id="send-btn">Envoyer</button>
     </form>
 
     <script>
@@ -50,6 +51,8 @@
         const form = document.getElementById('chat-form');
         const msgInput = document.getElementById('msg-input');
         const unInput = document.getElementById('un-input');
+        const fileInput = document.getElementById('file-input');
+        const sendBtn = document.getElementById('send-btn');
 
         try {
             unInput.value = localStorage.getItem("username") || "";
@@ -76,20 +79,43 @@
                     console.error("Erreur : le message reçu n'est pas un JSON valide", e);
                 }
             };
+            // ponytail: 1s fixed retry, add exponential backoff if thundering herd matters
             ws.onclose = () => setTimeout(connect, 1000);
         }
         connect();
 
-        // Envoi des messages
-        form.addEventListener('submit', (e) => {
+        // Envoi des messages et upload de fichier via tmpfiles.org
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const text = msgInput.value.trim();
+            if (ws.readyState !== WebSocket.OPEN) return;
+
+            let text = msgInput.value.trim();
             const username = unInput.value.trim() || 'Anonyme';
+            const file = fileInput.files[0];
 
-            if (text && ws.readyState === WebSocket.OPEN) {
-                const messageData = { username: username, text: text };
-                ws.send(JSON.stringify(messageData));
+            if (!text && !file) return;
 
+            if (file) {
+                sendBtn.disabled = true;
+                try {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const res = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: fd });
+                    const { data } = await res.json();
+                    if (data && data.url) {
+                        text = text ? `${text} ${data.url}` : data.url;
+                    }
+                    fileInput.value = '';
+                } catch (err) {
+                    console.error("Erreur lors de l'envoi du fichier :", err);
+                    sendBtn.disabled = false;
+                    return;
+                }
+                sendBtn.disabled = false;
+            }
+
+            if (text) {
+                ws.send(JSON.stringify({ username, text }));
                 addMessage(username, text, true);
                 msgInput.value = '';
             }
@@ -101,7 +127,7 @@
             } catch (e) {}
         })
 
-        // Affichage dans le DOM avec protection XSS
+        // Affichage dans le DOM avec protection XSS et liens cliquables
         function addMessage(username, text, isMe) {
             const div = document.createElement('div');
             div.className = isMe ? 'msg me' : 'msg';
@@ -111,7 +137,21 @@
             userSpan.textContent = username;
 
             div.appendChild(userSpan);
-            div.append(': ' + text);
+            div.append(': ');
+
+            // Affichage des liens
+            for (const part of text.split(/(https?:\/\/\S+)/g)) {
+                if (/^https?:\/\/\S+$/.test(part)) {
+                    const a = document.createElement('a');
+                    a.href = part;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.textContent = part;
+                    div.appendChild(a);
+                } else {
+                    div.append(part);
+                }
+            }
 
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
