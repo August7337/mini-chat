@@ -46,29 +46,33 @@
     <script>
         // Gère automatiquement ws:// en local et wss:// en production
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${protocol}//${window.location.host}`);
         const messagesDiv = document.getElementById('messages');
         const form = document.getElementById('chat-form');
         const msgInput = document.getElementById('msg-input');
         const unInput = document.getElementById('un-input');
 
-        try {                                                                                                                                                         
-            unInput.value = localStorage.getItem("username") || "";                                                                                                   
-        } catch (e) {                                                                                                                                                 
-            console.warn("Stockage local inaccessible :", e);                                                                                                         
-        } 
-
-
-        // Réception des messages
-        ws.onmessage = async (event) => {
-        const rawData = event.data instanceof Blob ? await event.data.text() : event.data;
         try {
-            const msg = JSON.parse(rawData);
-            addMessage(msg.username || 'Anonyme', msg.text, false);
+            unInput.value = localStorage.getItem("username") || "";
         } catch (e) {
-            console.error("Erreur : le message reçu n'est pas un JSON valide", e);
+            console.warn("Stockage local inaccessible :", e);
         }
-};
+
+        // Réception des messages et reconnexion automatique
+        let ws;
+        function connect() {
+            ws = new WebSocket(`${protocol}//${window.location.host}`);
+            ws.onmessage = async (event) => {
+                const rawData = event.data instanceof Blob ? await event.data.text() : event.data;
+                try {
+                    const msg = JSON.parse(rawData);
+                    addMessage(msg.username || 'Anonyme', msg.text, false);
+                } catch (e) {
+                    console.error("Erreur : le message reçu n'est pas un JSON valide", e);
+                }
+            };
+            ws.onclose = () => setTimeout(connect, 1000);
+        }
+        connect();
 
         // Envoi des messages
         form.addEventListener('submit', (e) => {
@@ -76,7 +80,7 @@
             const text = msgInput.value.trim();
             const username = unInput.value.trim() || 'Anonyme';
 
-            if (text) {
+            if (text && ws.readyState === WebSocket.OPEN) {
                 const messageData = { username: username, text: text };
                 ws.send(JSON.stringify(messageData));
 
@@ -86,9 +90,9 @@
         });
 
         unInput.addEventListener('change', (e) => {
-            try {                                                                                                                                                     
-                localStorage.setItem("username", unInput.value.trim());                                                                                               
-            } catch (e) {} 
+            try {
+                localStorage.setItem("username", unInput.value.trim());
+            } catch (e) {}
         })
 
         // Affichage dans le DOM avec protection XSS
