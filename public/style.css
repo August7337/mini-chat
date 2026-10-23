@@ -1,0 +1,38 @@
+body {
+    margin: 0;
+    padding: 0 30px;
+    height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#chat-form {
+    padding: 10px 0;
+    flex-shrink: 0;
+}
+
+#messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 0;
+}
+
+.msg {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.me {
+    align-self: flex-end;
+    text-align: right;
+}
+
+.username {
+    text-decoration: underline;
+}
