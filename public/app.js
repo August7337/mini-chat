@@ -25,7 +25,7 @@ function connect() {
             if (msg.type === 'history') {
                 messagesDiv.innerHTML = '';
                 const myName = unInput.value.trim();
-                msg.messages.forEach((m) => addMessage(m.username, m.text, Boolean(myName && m.username === myName)));
+                msg.messages.forEach((m) => addMessage(m.username, m.text, Boolean(myName && m.username === myName), true));
                 return;
             }
             addMessage(msg.username || 'Anonyme', msg.text, false);
@@ -82,7 +82,8 @@ unInput.addEventListener('change', (e) => {
 })
 
 // Affichage dans le DOM avec protection XSS et liens cliquables
-function addMessage(username, text, isMe) {
+function addMessage(username, text, isMe, isHistory) {
+    if (!isHistory && /alexandre/i.test(text)) new Audio('/alexandre.mp3').play().catch(() => {});
     const div = document.createElement('div');
     div.className = isMe ? 'msg me' : 'msg';
 
